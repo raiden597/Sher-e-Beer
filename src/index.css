@@ -153,6 +153,16 @@ body::after{
 }
 .challenge strong{font-weight:600;color:var(--gold);}
 
+.tagline.taunt{
+  color:var(--gold-bright);
+  animation:tauntNudge .5s ease;
+}
+@keyframes tauntNudge{
+  25%{transform:translateX(-4px)}
+  55%{transform:translateX(3px)}
+  80%{transform:translateX(-2px)}
+}
+
 .mug-btn{
   position:relative;overflow:hidden;
   cursor:pointer;
@@ -189,7 +199,9 @@ body::after{
     inset 0 0 20px rgba(232,193,90,.06),
     0 5px 16px rgba(0,0,0,.5);
 }
-.mug-btn .clink{font-size:1.35em;line-height:1;}
+.mug-btn .clink{font-size:1.35em;line-height:1;display:inline-block;}
+.mug-btn:hover .clink{animation:wiggle .5s ease;}
+@keyframes wiggle{25%{transform:rotate(-12deg)}60%{transform:rotate(9deg)}}
 .mug-btn .sheen{
   position:absolute;top:0;bottom:0;left:-70%;width:45%;
   background:linear-gradient(105deg,transparent,rgba(247,221,155,.16),transparent);
@@ -268,8 +280,15 @@ body::after{
 }
 
 .buying{
-  min-height:46px;
+  min-height:64px;
   display:flex;align-items:center;justify-content:center;
+}
+.flip-wrap{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+}
+.flip-line{
+  font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:16px;color:var(--muted);
 }
 .coin-btn{
   background:none;border:none;cursor:pointer;
@@ -331,6 +350,16 @@ body::after{
 }
 .again:active{background:var(--gold);color:var(--ink);border-color:var(--gold);}
 
+.beer-drop{
+  position:fixed;top:-60px;z-index:6;
+  line-height:1;pointer-events:none;
+  animation:beerFall linear forwards;
+  filter:drop-shadow(0 4px 10px rgba(0,0,0,.4));
+}
+@keyframes beerFall{
+  to{transform:translateY(115vh) rotate(210deg);}
+}
+
 .bubble{
   position:fixed;bottom:-40px;border-radius:50%;
   background:radial-gradient(circle at 30% 30%, rgba(255,248,227,.95), rgba(232,193,90,.55));
@@ -345,4 +374,7 @@ body::after{
   .mug-btn .sheen{animation:none;display:none;}
   .coin-spin{animation:none;}
   .buying-result{animation:none;}
+  .mug-btn:hover .clink{animation:none;}
+  .tagline.taunt{animation:none;}
+  .beer-drop{animation:none;display:none;}
 }

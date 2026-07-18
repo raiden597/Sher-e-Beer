@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 
 const CHEERS = [
   { title: 'Cheers!', line: 'Two mugs, one moment. Drink up, sher.' },
@@ -7,6 +7,20 @@ const CHEERS = [
   { title: 'Shava Shava!', line: 'Okay, now we’re just showing off.' },
   { title: 'Sher Mode: ON', line: 'The mug fears you now.' },
   { title: 'Legend Status', line: 'Paani vi pee lo, sher. 💧' },
+]
+
+const TAUNTS = [
+  'Oye, the mug’s getting warm, sher… 🫗',
+  'Lions don’t stop at one. Just saying.',
+  'The yaars are waiting, sher.',
+  'Thirsty silence detected. 👀',
+]
+
+const FLIP_LINES = [
+  'consulting the lion…',
+  'checking both wallets…',
+  'asking the bartender…',
+  'reading the foam…',
 ]
 
 // invite baked into the URL hash, e.g. #c=4&from=Karan
@@ -18,18 +32,26 @@ const INVITE = inviteParams.get('c')
     }
   : null
 
+const IS_TOUCH = typeof window !== 'undefined' && 'ontouchstart' in window
+
 export default function App() {
   const [cheering, setCheering] = useState(false)
   const [count, setCount] = useState(0)
   const [buying, setBuying] = useState(null) // null | 'flipping' | result text
+  const [flipLine, setFlipLine] = useState(0)
   const [showInvite, setShowInvite] = useState(!!INVITE)
   const [share, setShare] = useState('idle') // idle | naming | copied
   const [name, setName] = useState(() => localStorage.getItem('sher-name') || '')
+  const [taunt, setTaunt] = useState(null)
+  const [canShake, setCanShake] = useState(false)
   const bubbleLayer = useRef(null)
   const countRef = useRef(0)
   const audioRef = useRef(null)
   const flipTimer = useRef(null)
+  const flipCycle = useRef(null)
   const copiedTimer = useRef(null)
+  const clinkRef = useRef(() => {})
+  const motionReady = useRef(false)
 
   const playClink = useCallback(() => {
     const Ctx = window.AudioContext || window.webkitAudioContext
@@ -71,22 +93,92 @@ export default function App() {
     }
   }, [])
 
+  // golden beer rain over everything on milestone rounds
+  const spawnBeerRain = useCallback(() => {
+    const layer = bubbleLayer.current || document.body
+    for (let i = 0; i < 14; i++) {
+      const d = document.createElement('div')
+      d.className = 'beer-drop'
+      d.textContent = Math.random() < 0.5 ? '🍺' : '🍻'
+      d.style.left = Math.random() * 100 + 'vw'
+      d.style.fontSize = 22 + Math.random() * 26 + 'px'
+      const dur = 1.4 + Math.random() * 1.2
+      d.style.animationDuration = dur + 's'
+      d.style.animationDelay = Math.random() * 0.6 + 's'
+      layer.appendChild(d)
+      setTimeout(() => d.remove(), (dur + 1) * 1000)
+    }
+  }, [])
+
+  const attachShake = useCallback(() => {
+    if (motionReady.current) return
+    motionReady.current = true
+    setCanShake(true)
+    let last = 0
+    window.addEventListener('devicemotion', e => {
+      const a = e.accelerationIncludingGravity
+      if (!a) return
+      const mag = Math.abs(a.x || 0) + Math.abs(a.y || 0) + Math.abs(a.z || 0)
+      const now = Date.now()
+      if (mag > 40 && now - last > 1200) {
+        last = now
+        clinkRef.current()
+      }
+    })
+  }, [])
+
+  // Android and other no-permission devices: listen right away
+  useEffect(() => {
+    if (IS_TOUCH && typeof DeviceMotionEvent !== 'undefined' &&
+        typeof DeviceMotionEvent.requestPermission !== 'function') {
+      attachShake()
+    }
+  }, [attachShake])
+
+  // iOS: motion needs a user-gesture permission — ask on first clink
+  const enableShakeIOS = useCallback(() => {
+    if (motionReady.current || !IS_TOUCH) return
+    if (typeof DeviceMotionEvent !== 'undefined' &&
+        typeof DeviceMotionEvent.requestPermission === 'function') {
+      DeviceMotionEvent.requestPermission()
+        .then(res => { if (res === 'granted') attachShake() })
+        .catch(() => {})
+    }
+  }, [attachShake])
+
   const clink = useCallback(() => {
     if (navigator.vibrate) navigator.vibrate([30, 40, 30])
     countRef.current += 1
     setCount(countRef.current)
     setShowInvite(false)
+    setTaunt(null)
     playClink()
+    enableShakeIOS()
     // rounds get rowdier: more bubbles every clink, capped
     spawnBubbles(Math.min(26 + countRef.current * 4, 50))
+    if (countRef.current % 5 === 0) spawnBeerRain()
     setCheering(true)
-  }, [playClink, spawnBubbles])
+  }, [playClink, spawnBubbles, spawnBeerRain, enableShakeIOS])
+
+  useEffect(() => { clinkRef.current = clink }, [clink])
+
+  // idle taunts: gone quiet after clinking? the lion notices
+  useEffect(() => {
+    if (cheering || count === 0) return
+    const id = setTimeout(() => {
+      setTaunt(TAUNTS[Math.floor(Math.random() * TAUNTS.length)])
+    }, 15000)
+    return () => clearTimeout(id)
+  }, [cheering, count])
 
   const flipCoin = useCallback(() => {
     setBuying('flipping')
+    setFlipLine(0)
+    flipCycle.current = setInterval(() => setFlipLine(i => i + 1), 500)
     flipTimer.current = setTimeout(() => {
+      clearInterval(flipCycle.current)
       setBuying(Math.random() < 0.5 ? 'You’re buying! 💸' : 'They’re buying! 🎉')
-    }, 1400)
+    }, 2000)
   }, [])
 
   const sendInvite = useCallback(async () => {
@@ -116,6 +208,7 @@ export default function App() {
 
   const pourAnother = useCallback(() => {
     clearTimeout(flipTimer.current)
+    clearInterval(flipCycle.current)
     setBuying(null)
     setShare('idle')
     setCheering(false)
@@ -147,6 +240,8 @@ export default function App() {
             🍻 <strong>{INVITE.from || 'A yaar'}</strong> clinked{' '}
             {INVITE.n} round{INVITE.n === 1 ? '' : 's'} &amp; sent it to you — clink back!
           </p>
+        ) : taunt ? (
+          <p className="tagline taunt">{taunt}</p>
         ) : (
           <p className="tagline">The lion doesn&rsquo;t drink alone. Show this. Share a beer.</p>
         )}
@@ -155,7 +250,7 @@ export default function App() {
           <span className="sheen" aria-hidden="true" />
           <span className="clink">🍺</span> {showInvite ? 'Clink back' : 'Cheers, yaar'}
         </button>
-        <div className="hint">tap to clink</div>
+        <div className="hint">{canShake ? 'tap or shake to clink' : 'tap to clink'}</div>
       </main>
 
       <footer className="credit">
@@ -166,7 +261,7 @@ export default function App() {
       </footer>
 
       <section className={`cheers${cheering ? ' show' : ''}`}>
-        <div className="clink-big">🍻</div>
+        <div className="clink-big" key={count}>🍻</div>
         <h2>{msg.title}</h2>
         <div className="ornament" aria-hidden="true">
           <span className="rule" /><span className="gem">✦</span><span className="rule" />
@@ -180,7 +275,12 @@ export default function App() {
               Who&rsquo;s buying? 🪙
             </button>
           )}
-          {buying === 'flipping' && <div className="coin-spin" aria-label="flipping a coin">🪙</div>}
+          {buying === 'flipping' && (
+            <div className="flip-wrap">
+              <div className="coin-spin" aria-label="flipping a coin">🪙</div>
+              <div className="flip-line">{FLIP_LINES[flipLine % FLIP_LINES.length]}</div>
+            </div>
+          )}
           {buying !== null && buying !== 'flipping' && (
             <div className="buying-result">{buying}</div>
           )}
