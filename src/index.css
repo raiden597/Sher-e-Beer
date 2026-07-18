@@ -63,6 +63,9 @@ body::after{
   line-height:.88;
   text-transform:uppercase;
   letter-spacing:.02em;
+  /* shadow lives on the parent: filter directly on background-clip:text
+     breaks the clip in Safari and paints the gradient as a box */
+  filter:drop-shadow(0 2px 1px rgba(0,0,0,.6)) drop-shadow(0 10px 26px rgba(232,193,90,.18));
 }
 .wordmark .top,
 .wordmark .beer{
@@ -72,7 +75,6 @@ body::after{
   background-size:220% 100%;
   -webkit-background-clip:text;background-clip:text;color:transparent;
   animation:foil 7s ease-in-out infinite;
-  filter:drop-shadow(0 2px 1px rgba(0,0,0,.6)) drop-shadow(0 10px 26px rgba(232,193,90,.18));
 }
 .wordmark .top{font-size:clamp(50px,16vw,88px);}
 .wordmark .beer{font-size:clamp(62px,21vw,116px);animation-delay:.4s;}
@@ -248,7 +250,6 @@ body::after{
 .cheers.show{opacity:1;pointer-events:auto;}
 .cheers .clink-big{
   font-size:clamp(84px,30vw,160px);
-  filter:drop-shadow(0 14px 34px rgba(0,0,0,.6));
   animation:cheersPop .65s cubic-bezier(.2,1.4,.4,1) both;
 }
 @keyframes cheersPop{
@@ -256,12 +257,12 @@ body::after{
   60%{transform:scale(1.12) rotate(5deg);}
   100%{transform:scale(1) rotate(0);opacity:1;}
 }
+.h2-wrap{filter:drop-shadow(0 3px 1px rgba(0,0,0,.5));}
 .cheers h2{
   font-family:'Anton',sans-serif;text-transform:uppercase;
   font-size:clamp(40px,13vw,72px);letter-spacing:.03em;
   background:linear-gradient(180deg,var(--gold-bright) 0%,var(--gold) 45%,var(--gold-deep) 100%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
-  filter:drop-shadow(0 3px 1px rgba(0,0,0,.5));
 }
 .cheers .ornament{margin:0 auto;}
 .cheers p{
@@ -354,7 +355,6 @@ body::after{
   position:fixed;top:-60px;z-index:6;
   line-height:1;pointer-events:none;
   animation:beerFall linear forwards;
-  filter:drop-shadow(0 4px 10px rgba(0,0,0,.4));
 }
 @keyframes beerFall{
   to{transform:translateY(115vh) rotate(210deg);}

@@ -262,7 +262,7 @@ export default function App() {
 
       <section className={`cheers${cheering ? ' show' : ''}`}>
         <div className="clink-big" key={count}>🍻</div>
-        <h2>{msg.title}</h2>
+        <div className="h2-wrap"><h2>{msg.title}</h2></div>
         <div className="ornament" aria-hidden="true">
           <span className="rule" /><span className="gem">✦</span><span className="rule" />
         </div>
