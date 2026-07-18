@@ -76,7 +76,9 @@ body::after{
 }
 .wordmark .top{font-size:clamp(50px,16vw,88px);}
 .wordmark .beer{font-size:clamp(62px,21vw,116px);animation-delay:.4s;}
-.dash{opacity:.85;}
+/* solid fill, not opacity: Safari won't paint clipped gradient text
+   inside a child that has its own opacity layer */
+.dash{color:#dcb04a;-webkit-text-fill-color:#dcb04a;}
 @keyframes foil{
   0%,100%{background-position:0% 0;}
   50%{background-position:100% 0;}
