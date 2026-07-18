@@ -216,7 +216,7 @@ export default function App() {
 
   const msg =
     count >= 10
-      ? { title: 'Bas Vi Karo Veere! 😅', line: '10 rounds?! Even the lion is calling it a night. 😴' }
+      ? { title: 'Bas Vi Karo Veere!', line: '10 rounds?! Even the lion is calling it a night. 😅😴' }
       : CHEERS[Math.min(Math.max(count - 1, 0), CHEERS.length - 1)]
 
   return (
