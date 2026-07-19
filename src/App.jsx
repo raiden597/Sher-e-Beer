@@ -44,6 +44,12 @@ export default function App() {
   const [name, setName] = useState(() => localStorage.getItem('sher-name') || '')
   const [taunt, setTaunt] = useState(null)
   const [canShake, setCanShake] = useState(false)
+  const [total, setTotal] = useState(() => {
+    try { return parseInt(localStorage.getItem('sher-total'), 10) || 0 } catch { return 0 }
+  })
+  const [roaring, setRoaring] = useState(false)
+  const roarTimer = useRef(null)
+  const roarEndTimer = useRef(null)
   const bubbleLayer = useRef(null)
   const countRef = useRef(0)
   const audioRef = useRef(null)
@@ -53,11 +59,17 @@ export default function App() {
   const clinkRef = useRef(() => {})
   const motionReady = useRef(false)
 
-  const playClink = useCallback(() => {
+  const getCtx = useCallback(() => {
     const Ctx = window.AudioContext || window.webkitAudioContext
-    if (!Ctx) return
+    if (!Ctx) return null
     const ctx = (audioRef.current ??= new Ctx())
     if (ctx.state === 'suspended') ctx.resume()
+    return ctx
+  }, [])
+
+  const playClink = useCallback(() => {
+    const ctx = getCtx()
+    if (!ctx) return
     const t = ctx.currentTime
     // two detuned high pings ≈ glass on glass
     ;[1810, 2470].forEach((freq, i) => {
@@ -72,7 +84,121 @@ export default function App() {
       osc.start(t + i * 0.013)
       osc.stop(t + 0.5)
     })
-  }, [])
+  }, [getCtx])
+
+  // milestone rounds: rising cascade of pings + a fizzy swell
+  const playFlourish = useCallback(() => {
+    const ctx = getCtx()
+    if (!ctx) return
+    const t = ctx.currentTime
+    ;[1500, 1900, 2400, 3100].forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      const at = t + i * 0.11
+      gain.gain.setValueAtTime(0.0001, at)
+      gain.gain.exponentialRampToValueAtTime(0.16, at + 0.008)
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.5)
+      osc.connect(gain).connect(ctx.destination)
+      osc.start(at)
+      osc.stop(at + 0.55)
+    })
+    const dur = 0.7
+    const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate)
+    const data = buf.getChannelData(0)
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
+    const noise = ctx.createBufferSource()
+    noise.buffer = buf
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.value = 5200
+    bp.Q.value = 0.8
+    const ng = ctx.createGain()
+    ng.gain.setValueAtTime(0.0001, t)
+    ng.gain.exponentialRampToValueAtTime(0.06, t + 0.25)
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+    noise.connect(bp).connect(ng).connect(ctx.destination)
+    noise.start(t)
+    noise.stop(t + dur)
+  }, [getCtx])
+
+  // pour: falling filtered fizz + a few descending glugs
+  const playPour = useCallback(() => {
+    const ctx = getCtx()
+    if (!ctx) return
+    const t = ctx.currentTime
+    const dur = 0.55
+    const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate)
+    const data = buf.getChannelData(0)
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
+    const noise = ctx.createBufferSource()
+    noise.buffer = buf
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.Q.value = 1.2
+    bp.frequency.setValueAtTime(900, t)
+    bp.frequency.exponentialRampToValueAtTime(350, t + dur)
+    const ng = ctx.createGain()
+    ng.gain.setValueAtTime(0.0001, t)
+    ng.gain.exponentialRampToValueAtTime(0.16, t + 0.06)
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+    noise.connect(bp).connect(ng).connect(ctx.destination)
+    noise.start(t)
+    noise.stop(t + dur)
+    ;[0.08, 0.24, 0.4].forEach((off, i) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(220 - i * 40, t + off)
+      osc.frequency.exponentialRampToValueAtTime(120 - i * 20, t + off + 0.1)
+      gain.gain.setValueAtTime(0.0001, t + off)
+      gain.gain.exponentialRampToValueAtTime(0.11, t + off + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + off + 0.14)
+      osc.connect(gain).connect(ctx.destination)
+      osc.start(t + off)
+      osc.stop(t + off + 0.16)
+    })
+  }, [getCtx])
+
+  // easter egg: hold the lion — low sawtooth growl + band-swept rumble
+  const playRoar = useCallback(() => {
+    const ctx = getCtx()
+    if (!ctx) return
+    const t = ctx.currentTime
+    const dur = 0.9
+    const osc = ctx.createOscillator()
+    osc.type = 'sawtooth'
+    osc.frequency.setValueAtTime(150, t)
+    osc.frequency.exponentialRampToValueAtTime(65, t + dur)
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.value = 420
+    const og = ctx.createGain()
+    og.gain.setValueAtTime(0.0001, t)
+    og.gain.exponentialRampToValueAtTime(0.4, t + 0.08)
+    og.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+    osc.connect(lp).connect(og).connect(ctx.destination)
+    osc.start(t)
+    osc.stop(t + dur)
+    const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate)
+    const data = buf.getChannelData(0)
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
+    const noise = ctx.createBufferSource()
+    noise.buffer = buf
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.setValueAtTime(320, t)
+    bp.frequency.exponentialRampToValueAtTime(110, t + dur)
+    bp.Q.value = 0.9
+    const ng = ctx.createGain()
+    ng.gain.setValueAtTime(0.0001, t)
+    ng.gain.exponentialRampToValueAtTime(0.22, t + 0.1)
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+    noise.connect(bp).connect(ng).connect(ctx.destination)
+    noise.start(t)
+    noise.stop(t + dur)
+  }, [getCtx])
 
   const spawnBubbles = useCallback(n => {
     const layer = bubbleLayer.current || document.body
@@ -150,15 +276,41 @@ export default function App() {
     if (navigator.vibrate) navigator.vibrate([30, 40, 30])
     countRef.current += 1
     setCount(countRef.current)
+    setTotal(prev => {
+      const next = prev + 1
+      try { localStorage.setItem('sher-total', next) } catch { /* private mode */ }
+      return next
+    })
     setShowInvite(false)
     setTaunt(null)
-    playClink()
     enableShakeIOS()
     // rounds get rowdier: more bubbles every clink, capped
     spawnBubbles(Math.min(26 + countRef.current * 4, 50))
-    if (countRef.current % 5 === 0) spawnBeerRain()
+    if (countRef.current % 5 === 0) {
+      playFlourish()
+      spawnBeerRain()
+    } else {
+      playClink()
+    }
     setCheering(true)
-  }, [playClink, spawnBubbles, spawnBeerRain, enableShakeIOS])
+  }, [playClink, playFlourish, spawnBubbles, spawnBeerRain, enableShakeIOS])
+
+  // hold the lion for a moment → it roars
+  const startRoarHold = useCallback(() => {
+    clearTimeout(roarTimer.current)
+    roarTimer.current = setTimeout(() => {
+      playRoar()
+      if (navigator.vibrate) navigator.vibrate([60, 40, 120])
+      spawnBubbles(18)
+      setRoaring(true)
+      clearTimeout(roarEndTimer.current)
+      roarEndTimer.current = setTimeout(() => setRoaring(false), 850)
+    }, 550)
+  }, [playRoar, spawnBubbles])
+
+  const cancelRoarHold = useCallback(() => {
+    clearTimeout(roarTimer.current)
+  }, [])
 
   useEffect(() => { clinkRef.current = clink }, [clink])
 
@@ -209,10 +361,11 @@ export default function App() {
   const pourAnother = useCallback(() => {
     clearTimeout(flipTimer.current)
     clearInterval(flipCycle.current)
+    playPour()
     setBuying(null)
     setShare('idle')
     setCheering(false)
-  }, [])
+  }, [playPour])
 
   const msg =
     count >= 10
@@ -235,7 +388,15 @@ export default function App() {
 
         <div className="crest">
           <div className="crest-ring" aria-hidden="true" />
-          <div className="mascot">🦁</div>
+          <div
+            className={`mascot${roaring ? ' roaring' : ''}`}
+            onPointerDown={startRoarHold}
+            onPointerUp={cancelRoarHold}
+            onPointerLeave={cancelRoarHold}
+            onContextMenu={e => e.preventDefault()}
+          >
+            🦁
+          </div>
         </div>
 
         {showInvite ? (
@@ -270,7 +431,9 @@ export default function App() {
           <span className="rule" /><span className="gem">✦</span><span className="rule" />
         </div>
         <p>{msg.line}</p>
-        <div className="count-chip">🍺 &times; {count} clinked</div>
+        <div className="count-chip">
+          🍺 &times; {count} tonight{total > count ? <> &middot; {total} all time</> : null}
+        </div>
 
         <div className="buying">
           {buying === null && (

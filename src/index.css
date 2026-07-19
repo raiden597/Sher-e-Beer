@@ -78,9 +78,9 @@ body::after{
 }
 .wordmark .top{font-size:clamp(50px,16vw,88px);}
 .wordmark .beer{font-size:clamp(62px,21vw,116px);animation-delay:.4s;}
-/* solid fill, not opacity: Safari won't paint clipped gradient text
-   inside a child that has its own opacity layer */
-.dash{color:#dcb04a;-webkit-text-fill-color:#dcb04a;}
+/* .dash carries NO styles on purpose: it inherits the parent's clipped foil
+   gradient. Giving it opacity/filter/transform creates its own layer and
+   Safari stops painting the gradient into it (renders invisible). */
 @keyframes foil{
   0%,100%{background-position:0% 0;}
   50%{background-position:100% 0;}
@@ -126,8 +126,18 @@ body::after{
 .mascot{
   font-size:clamp(64px,19vw,92px);
   line-height:1;
+  cursor:pointer;
+  -webkit-touch-callout:none;
   filter:drop-shadow(0 6px 18px rgba(0,0,0,.55)) drop-shadow(0 0 18px rgba(232,193,90,.12));
   animation:float 4.2s ease-in-out infinite;
+}
+.mascot.roaring{animation:roar .85s cubic-bezier(.2,1.2,.3,1);}
+@keyframes roar{
+  0%{transform:scale(1);}
+  22%{transform:scale(1.24) rotate(-4deg);}
+  45%{transform:scale(1.18) rotate(4deg);}
+  65%{transform:scale(1.21) rotate(-2deg);}
+  100%{transform:scale(1);}
 }
 @keyframes float{50%{transform:translateY(-8px)}}
 
@@ -377,4 +387,5 @@ body::after{
   .mug-btn:hover .clink{animation:none;}
   .tagline.taunt{animation:none;}
   .beer-drop{animation:none;display:none;}
+  .mascot.roaring{animation:none;}
 }
